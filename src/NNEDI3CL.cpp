@@ -66,7 +66,7 @@ void filter(const AVS_VideoFrame* src, AVS_VideoFrame* dst, const int field_n, c
     const int planes_y[3]{ AVS_PLANAR_Y, AVS_PLANAR_U, AVS_PLANAR_V };
     const int planes_r[3]{ AVS_PLANAR_R, AVS_PLANAR_G, AVS_PLANAR_B };
     const int* planes{ (avs_is_rgb(&d->fi->vi) ? planes_r : planes_y) };
-    const int num_planes{ std::max(avs_num_components(&d->fi->vi), 3) };
+    const int num_planes{ std::min(avs_num_components(&d->fi->vi), 3) };
 
     for (int i{ 0 }; i < num_planes; ++i)
     {
