@@ -29,7 +29,8 @@ NNEDI3CL(clip input, int field, bool "dh", bool "dw", int[] "planes", int "nsize
     0: Same rate, keep bottom field.\
     1: Same rate, keep top field.\
     2: Double rate (alternates each frame), starts with bottom.\
-    3: Double rate (alternates each frame), starts with top.
+    3: Double rate (alternates each frame), starts with top.\
+    Note: If `_FieldBased` property (if exists) is `> 0`, this is internally set to - `_FieldBased=1 => field=0` and `_FieldBased=2 => field=1`.
 
 - dh\
     Doubles the height of the input.\
