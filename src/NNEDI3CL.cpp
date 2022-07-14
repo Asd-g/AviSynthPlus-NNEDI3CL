@@ -329,16 +329,21 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
             params->err = std::make_unique<char[]>(text.size() + 1);
             strcpy(params->err.get(), text.c_str());
 
-            AVS_Value args_[2]{ avs_new_value_clip(clip), avs_new_value_string(params->err.get()) };
-            clip = avs_new_c_filter(env, &params->fi, avs_invoke(params->fi->env, "Text", avs_new_value_array(args_, 2), 0), 1);
+            AVS_Value cl{ avs_new_value_clip(clip) };
+            AVS_Value args_[2]{ cl , avs_new_value_string(params->err.get()) };
+            AVS_Value inv{ avs_invoke(params->fi->env, "Text", avs_new_value_array(args_, 2), 0) };
+            AVS_Clip* clip1{ avs_new_c_filter(env, &params->fi, inv, 1) };
 
-            v = avs_new_value_clip(clip);
+            v = avs_new_value_clip(clip1);
 
             params->fi->user_data = reinterpret_cast<void*>(params);
             params->fi->get_frame = NNEDI3CL_get_frame;
             params->fi->set_cache_hints = NNEDI3CL_set_cache_hints;
             params->fi->free_filter = free_NNEDI3CL;
 
+            avs_release_clip(clip1);
+            avs_release_value(inv);
+            avs_release_value(cl);
             avs_release_clip(clip);
 
             return v;
@@ -397,16 +402,21 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
             params->err = std::make_unique<char[]>(text.size() + 1);
             strcpy(params->err.get(), text.c_str());
 
-            AVS_Value args_[2]{ avs_new_value_clip(clip), avs_new_value_string(params->err.get()) };
-            clip = avs_new_c_filter(env, &params->fi, avs_invoke(params->fi->env, "Text", avs_new_value_array(args_, 2), 0), 1);
+            AVS_Value cl{ avs_new_value_clip(clip) };
+            AVS_Value args_[2]{ cl, avs_new_value_string(params->err.get()) };
+            AVS_Value inv{ avs_invoke(params->fi->env, "Text", avs_new_value_array(args_, 2), 0) };
+            AVS_Clip* clip1{ avs_new_c_filter(env, &params->fi, inv, 1) };
 
-            v = avs_new_value_clip(clip);
+            v = avs_new_value_clip(clip1);
 
             params->fi->user_data = reinterpret_cast<void*>(params);
             params->fi->get_frame = NNEDI3CL_get_frame;
             params->fi->set_cache_hints = NNEDI3CL_set_cache_hints;
             params->fi->free_filter = free_NNEDI3CL;
 
+            avs_release_clip(clip1);
+            avs_release_value(inv);
+            avs_release_value(cl);
             avs_release_clip(clip);
 
             return v;
