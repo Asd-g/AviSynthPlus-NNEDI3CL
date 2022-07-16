@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(libtnnedi3cl LANGUAGES CXX)
 
-add_library(nnedi3cl SHARED NNEDI3CL.cpp)
+add_library(nnedi3cl SHARED src/NNEDI3CL.cpp)
 
 target_include_directories(nnedi3cl PRIVATE /usr/local/include/avisynth)
 
@@ -32,7 +32,7 @@ endif()
 
 find_package(OpenCL REQUIRED)
 
-if (Boost_FOUND)
+if (OpenCL_FOUND)
     target_include_directories(${OpenCL_INCLUDE_DIRS})
     target_link_libraries(nnedi3cl ${OpenCL_LIBRARIES})
 else()
