@@ -1,3 +1,6 @@
+##### 1.0.3:
+    Added parameter `st`.
+
 ##### 1.0.2:
     Fixed memory leak when list_device=true/info=true.
 

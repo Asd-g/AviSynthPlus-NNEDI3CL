@@ -1,8 +1,9 @@
-#include <cerrno>
 #include <cstdio>
+#include <cerrno>
 
 #include <locale>
 #include <memory>
+#include <mutex>
 #include <sstream>
 #include <string>
 
@@ -33,12 +34,14 @@ static constexpr int xdiaTable[numNSIZE]{ 8, 16, 32, 48, 8, 16, 32 };
 static constexpr int ydiaTable[numNSIZE]{ 6, 6, 6, 6, 4, 4, 4 };
 static constexpr int nnsTable[numNNS]{ 16, 32, 64, 128, 256 };
 
+static std::mutex mtx;
+
 struct NNEDI3CLData
 {
     AVS_FilterInfo* fi;
     int field;
-    bool dh;
-    bool dw;
+    int dh;
+    int dw;
     bool process[3];
     int list_device;
     int info;
@@ -60,7 +63,7 @@ static AVS_FORCEINLINE int roundds(const double f) noexcept
     return (f - std::floor(f) >= 0.5) ? std::min(static_cast<int>(std::ceil(f)), 32767) : std::max(static_cast<int>(std::floor(f)), -32768);
 }
 
-template<typename T>
+template<typename T, bool st>
 void filter(const AVS_VideoFrame* src, AVS_VideoFrame* dst, const int field_n, const NNEDI3CLData* const __restrict d)
 {
     const int planes_y[3]{ AVS_PLANAR_Y, AVS_PLANAR_U, AVS_PLANAR_V };
@@ -113,7 +116,13 @@ void filter(const AVS_VideoFrame* src, AVS_VideoFrame* dst, const int field_n, c
                 queue.enqueue_nd_range_kernel(kernel, 2, nullptr, globalWorkSize, localWorkSize);
             }
 
-            queue.enqueue_read_image(dst_image, boost::compute::dim(0, 0), boost::compute::dim(dst_width, dst_height), dstp, avs_get_pitch_p(dst, planes[i]));
+            if constexpr (st)
+            {
+                std::lock_guard<std::mutex> lck(mtx);
+                queue.enqueue_read_image(dst_image, boost::compute::dim(0, 0), boost::compute::dim(dst_width, dst_height), dstp, avs_get_pitch_p(dst, planes[i]));
+            }
+            else
+                queue.enqueue_read_image(dst_image, boost::compute::dim(0, 0), boost::compute::dim(dst_width, dst_height), dstp, avs_get_pitch_p(dst, planes[i]));
         }
     }
 }
@@ -234,11 +243,11 @@ int AVSC_CC NNEDI3CL_set_cache_hints(AVS_FilterInfo* fi, int cachehints, int fra
 
 AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, void* param)
 {
-    enum { CLIP, FIELD, DH, DW, PLANES_, NSIZE, NNS, QUAL, ETYPE, PSCRN, DEVICE, LIST_DEVICE, INFO };
+    enum { Clip, Field, Dh, Dw, Planes, Nsize, Nns, Qual, Etype, Pscrn, Device, List_device, Info, St };
 
     NNEDI3CLData* params{ new NNEDI3CLData() };
 
-    AVS_Clip* clip{ avs_new_c_filter(env, &params->fi, avs_array_elt(args, CLIP), 1) };
+    AVS_Clip* clip{ avs_new_c_filter(env, &params->fi, avs_array_elt(args, Clip), 1) };
     const AVS_VideoInfo& vi_temp{ params->fi->vi };
     AVS_Value v{ avs_void };
 
@@ -247,20 +256,18 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
         if (!avs_is_planar(&params->fi->vi))
             throw std::string{ "only planar format is supported" };
 
-        params->field = avs_as_int(avs_array_elt(args, FIELD));
+        params->field = avs_as_int(avs_array_elt(args, Field));
+        params->dh = avs_defined(avs_array_elt(args, Dh)) ? avs_as_bool(avs_array_elt(args, Dh)) : 0;
+        params->dw = avs_defined(avs_array_elt(args, Dw)) ? avs_as_bool(avs_array_elt(args, Dw)) : 0;
 
-        params->dh = avs_defined(avs_array_elt(args, DH)) ? avs_as_bool(avs_array_elt(args, DH)) : false;
-
-        params->dw = avs_defined(avs_array_elt(args, DW)) ? avs_as_bool(avs_array_elt(args, DW)) : false;
-
-        const int num_planes{ (avs_defined(avs_array_elt(args, PLANES_))) ? avs_array_size(avs_array_elt(args, PLANES_)) : 0 };
+        const int num_planes{ (avs_defined(avs_array_elt(args, Planes))) ? avs_array_size(avs_array_elt(args, Planes)) : 0 };
 
         for (int i{ 0 }; i < 3; ++i)
             params->process[i] = (num_planes <= 0);
 
         for (int i{ 0 }; i < num_planes; ++i)
         {
-            const int n{ avs_as_int(*(avs_as_array(avs_array_elt(args, PLANES_)) + i)) };
+            const int n{ avs_as_int(*(avs_as_array(avs_array_elt(args, Planes)) + i)) };
 
             if (n >= avs_num_components(&params->fi->vi))
                 throw std::string{ "plane index out of range" };
@@ -271,36 +278,29 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
             params->process[n] = true;
         }
 
-        const int nsize{ avs_defined(avs_array_elt(args, NSIZE)) ? avs_as_int(avs_array_elt(args, NSIZE)) : 6 };
-        const int nns{ avs_defined(avs_array_elt(args, NNS)) ? avs_as_int(avs_array_elt(args, NNS)) : 1 };
-        const int qual{ avs_defined(avs_array_elt(args, QUAL)) ? avs_as_int(avs_array_elt(args, QUAL)) : 1 };
-        const int etype{ avs_defined(avs_array_elt(args, ETYPE)) ? avs_as_int(avs_array_elt(args, ETYPE)) : 0 };
-        const int pscrn{ avs_defined(avs_array_elt(args, PSCRN)) ? avs_as_int(avs_array_elt(args, PSCRN)) : (avs_component_size(&params->fi->vi) < 4) ? 2 : 1 };
-        const int device_id{ avs_defined(avs_array_elt(args, DEVICE)) ? avs_as_int(avs_array_elt(args, DEVICE)) : -1 };
-        params->list_device = avs_defined(avs_array_elt(args, LIST_DEVICE)) ? avs_as_bool(avs_array_elt(args, LIST_DEVICE)) : 0;
-        params->info = avs_defined(avs_array_elt(args, INFO)) ? avs_as_bool(avs_array_elt(args, INFO)) : 0;
+        const int nsize{ avs_defined(avs_array_elt(args, Nsize)) ? avs_as_int(avs_array_elt(args, Nsize)) : 6 };
+        const int nns{ avs_defined(avs_array_elt(args, Nns)) ? avs_as_int(avs_array_elt(args, Nns)) : 1 };
+        const int qual{ avs_defined(avs_array_elt(args, Qual)) ? avs_as_int(avs_array_elt(args, Qual)) : 1 };
+        const int etype{ avs_defined(avs_array_elt(args, Etype)) ? avs_as_int(avs_array_elt(args, Etype)) : 0 };
+        const int pscrn{ avs_defined(avs_array_elt(args, Pscrn)) ? avs_as_int(avs_array_elt(args, Pscrn)) : (avs_component_size(&params->fi->vi) < 4) ? 2 : 1 };
+        const int device_id{ avs_defined(avs_array_elt(args, Device)) ? avs_as_int(avs_array_elt(args, Device)) : -1 };
+        params->list_device = avs_defined(avs_array_elt(args, List_device)) ? avs_as_bool(avs_array_elt(args, List_device)) : 0;
+        params->info = avs_defined(avs_array_elt(args, Info)) ? avs_as_bool(avs_array_elt(args, Info)) : 0;
 
         if (params->field < 0 || params->field > 3)
             throw std::string{ "field must be 0, 1, 2 or 3" };
-
         if (!params->dh && (params->fi->vi.height & 1))
             throw std::string{ "height must be mod 2 when dh=False" };
-
         if (params->dh && params->field > 1)
             throw std::string{ "field must be 0 or 1 when dh=True" };
-
         if (params->dw && params->field > 1)
             throw std::string{ "field must be 0 or 1 when dw=True" };
-
         if (nsize < 0 || nsize > 6)
             throw std::string{ "nsize must be 0, 1, 2, 3, 4, 5 or 6" };
-
         if (nns < 0 || nns > 4)
             throw std::string{ "nns must be 0, 1, 2, 3 or 4" };
-
         if (qual < 1 || qual > 2)
             throw std::string{ "qual must be 1 or 2" };
-
         if (etype < 0 || etype > 1)
             throw std::string{ "etype must be 0 or 1" };
 
@@ -432,8 +432,8 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
             int64_t fps_n{ params->fi->vi.fps_numerator };
             int64_t fps_d{ params->fi->vi.fps_denominator };
             muldivRational(&fps_n, &fps_d, 2, 1);
-            params->fi->vi.fps_numerator = fps_n;
-            params->fi->vi.fps_denominator = fps_d;
+            params->fi->vi.fps_numerator = static_cast<unsigned>(fps_n);
+            params->fi->vi.fps_denominator = static_cast<unsigned>(fps_d);
         }
 
         if (params->dh)
@@ -724,25 +724,27 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
         else
             params->kernel = program.create_kernel("filter_float");
 
+        const int st{ avs_defined(avs_array_elt(args, St)) ? avs_as_bool(avs_array_elt(args, St)) : 0 };
         cl_image_format imageFormat;
+
         switch (avs_component_size(&params->fi->vi))
         {
             case 1:
             {
                 imageFormat = { CL_R, CL_UNSIGNED_INT8 };
-                params->filter = filter<uint8_t>;
+                params->filter = (st) ? filter<uint8_t, true> : filter<uint8_t, false>;
                 break;
             }
             case 2:
             {
                 imageFormat = { CL_R, CL_UNSIGNED_INT16 };
-                params->filter = filter<uint16_t>;
+                params->filter = (st) ? filter<uint16_t, true> : filter<uint16_t, false>;
                 break;
             }
             default:
             {
                 imageFormat = { CL_R, CL_FLOAT };
-                params->filter = filter<float>;
+                params->filter = (st) ? filter<float, true> : filter<float, false>;
             }
         }
 
@@ -832,6 +834,6 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
 
 const char* AVSC_CC avisynth_c_plugin_init(AVS_ScriptEnvironment* env)
 {
-    avs_add_function(env, "NNEDI3CL", "ci[dh]b[dw]b[planes]i*[nsize]i[nns]i[qual]i[etype]i[pscrn]i[device]i[list_device]b[info]b", Create_NNEDI3CL, 0);
+    avs_add_function(env, "NNEDI3CL", "ci[dh]b[dw]b[planes]i*[nsize]i[nns]i[qual]i[etype]i[pscrn]i[device]i[list_device]b[info]b[st]b", Create_NNEDI3CL, 0);
     return "NNEDI3CL";
 }

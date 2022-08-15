@@ -15,7 +15,7 @@ This is [a port of the VapourSynth plugin NNEDI3CL](https://github.com/HomeOfVap
 The file `nnedi3_weights.bin` is required. It must be located in the same folder as NNEDI3CL.
 
 ```
-NNEDI3CL(clip input, int field, bool "dh", bool "dw", int[] "planes", int "nsize", int "nns", int "qual", int "etype", int "pscrn", int "device", bool "list_device", bool "info")
+NNEDI3CL(clip input, int field, bool "dh", bool "dw", int[] "planes", int "nsize", int "nns", int "qual", int "etype", int "pscrn", int "device", bool "list_device", bool "info", bool "st")
 ```
 
 ### Parameters:
@@ -111,6 +111,11 @@ NNEDI3CL(clip input, int field, bool "dh", bool "dw", int[] "planes", int "nsize
 
 - info\
     Whether to draw the OpenCL-related info on the frame.
+
+- st\
+    Whether to run always in single thread even if `prefetch()` is used.\
+    In some cases using `NNEDI3CL` and `prefetch()` could cause very high cpu usage. In these cases `st=true` could help without forcing `MT_SERIALIZED` mode.\
+    Default: false.
 
 ### Building:
 
