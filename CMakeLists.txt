@@ -24,7 +24,7 @@ target_compile_features(nnedi3cl PRIVATE cxx_std_17)
 find_package(Boost REQUIRED filesystem system)
 
 if (Boost_FOUND)
-    target_include_directories(${Boost_INCLUDE_DIRS})
+    target_include_directories(nnedi3cl PRIVATE ${Boost_INCLUDE_DIRS})
     target_link_libraries(nnedi3cl ${Boost_LIBRARIES})
 else()
     message(FATAL_ERROR "Required Boost packages not found. Perhaps add -DBOOST_ROOT?")
@@ -33,11 +33,13 @@ endif()
 find_package(OpenCL REQUIRED)
 
 if (OpenCL_FOUND)
-    target_include_directories(${OpenCL_INCLUDE_DIRS})
+    target_include_directories(nnedi3cl PRIVATE ${OpenCL_INCLUDE_DIRS})
     target_link_libraries(nnedi3cl ${OpenCL_LIBRARIES})
 else()
     message(FATAL_ERROR "Required OpenCL packages not found.")
 endif()
+
+target_link_libraries(nnedi3cl libavisynth.so)
 
 find_package (Git)
 
