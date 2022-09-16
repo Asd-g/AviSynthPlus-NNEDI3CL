@@ -726,7 +726,7 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
         else
             params->kernel = program.create_kernel("filter_float");
 
-        const int st{ avs_defined(avs_array_elt(args, St)) ? avs_as_bool(avs_array_elt(args, St)) : 0 };
+        const int st{ avs_defined(avs_array_elt(args, St)) ? avs_as_bool(avs_array_elt(args, St)) : !!(device.get_info<CL_DEVICE_QUEUE_ON_HOST_PROPERTIES>() & 1) };
         cl_image_format imageFormat;
 
         switch (avs_component_size(&params->fi->vi))
