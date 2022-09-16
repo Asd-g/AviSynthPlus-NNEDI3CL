@@ -159,12 +159,8 @@ AVS_VideoFrame* AVSC_CC NNEDI3CL_get_frame(AVS_FilterInfo* fi, int n)
 {
     NNEDI3CLData* d{ static_cast<NNEDI3CLData*>(fi->user_data) };
 
-    if (d->list_device || d->info)
-        return avs_get_frame(fi->child, n);
-
     AVS_VideoFrame* src{ avs_get_frame(fi->child, (d->field > 1) ? (n / 2) : n) };
-    AVS_VideoFrame* dst{ avs_new_video_frame(fi->env, &fi->vi) };
-    avs_copy_frame_props(fi->env, src, dst);
+    AVS_VideoFrame* dst{ avs_new_video_frame_p(fi->env, &fi->vi, src) };
 
     int field{ d->field };
     if (field > 1)
@@ -332,14 +328,9 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
             AVS_Value cl{ avs_new_value_clip(clip) };
             AVS_Value args_[2]{ cl , avs_new_value_string(params->err.get()) };
             AVS_Value inv{ avs_invoke(params->fi->env, "Text", avs_new_value_array(args_, 2), 0) };
-            AVS_Clip* clip1{ avs_new_c_filter(env, &params->fi, inv, 1) };
+            AVS_Clip* clip1{ avs_take_clip(inv, env) };
 
             v = avs_new_value_clip(clip1);
-
-            params->fi->user_data = reinterpret_cast<void*>(params);
-            params->fi->get_frame = NNEDI3CL_get_frame;
-            params->fi->set_cache_hints = NNEDI3CL_set_cache_hints;
-            params->fi->free_filter = free_NNEDI3CL;
 
             avs_release_clip(clip1);
             avs_release_value(inv);
@@ -407,14 +398,9 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
             AVS_Value cl{ avs_new_value_clip(clip) };
             AVS_Value args_[2]{ cl, avs_new_value_string(params->err.get()) };
             AVS_Value inv{ avs_invoke(params->fi->env, "Text", avs_new_value_array(args_, 2), 0) };
-            AVS_Clip* clip1{ avs_new_c_filter(env, &params->fi, inv, 1) };
+            AVS_Clip* clip1{ avs_take_clip(inv, env) };
 
             v = avs_new_value_clip(clip1);
-
-            params->fi->user_data = reinterpret_cast<void*>(params);
-            params->fi->get_frame = NNEDI3CL_get_frame;
-            params->fi->set_cache_hints = NNEDI3CL_set_cache_hints;
-            params->fi->free_filter = free_NNEDI3CL;
 
             avs_release_clip(clip1);
             avs_release_value(inv);
