@@ -160,6 +160,9 @@ AVS_VideoFrame* AVSC_CC NNEDI3CL_get_frame(AVS_FilterInfo* fi, int n)
     NNEDI3CLData* d{ static_cast<NNEDI3CLData*>(fi->user_data) };
 
     AVS_VideoFrame* src{ avs_get_frame(fi->child, (d->field > 1) ? (n / 2) : n) };
+    if (!src)
+        return nullptr;
+
     AVS_VideoFrame* dst{ avs_new_video_frame_p(fi->env, &fi->vi, src) };
 
     int field{ d->field };
