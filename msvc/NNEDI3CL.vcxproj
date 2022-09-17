@@ -72,12 +72,12 @@
     <LibraryPath>..\..\OpenCL-SDK-v2022.05.18-Win-x86\OpenCL-SDK-2022.5.18-win32\lib;..\..\boost_1_79_0\bin\x86\lib;D:\Avisynth_3.7.3_20220419_test1\x86_xp\c_api;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>..\..\OpenCL-SDK-v2022.05.18-Win-x64\OpenCL-SDK-2022.5.18-win32\include;..\..\boost_1_79_0;..\..\AviSynthPlus\avs_core\include;$(IncludePath)</IncludePath>
-    <LibraryPath>..\..\AviSynthPlus\build_x64\Output\c_api;..\..\boost_1_79_0\bin\x64\lib;..\..\OpenCL-SDK-v2022.05.18-Win-x64\OpenCL-SDK-2022.5.18-win32\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>..\..\OpenCL-SDK-v2022.05.18-Win-x64\OpenCL-SDK-2022.5.18-win32\include;..\..\boost_1_80_0;..\..\AviSynthPlus\avs_core\include;$(IncludePath)</IncludePath>
+    <LibraryPath>..\..\AviSynthPlus\build_x64\Output\c_api;..\..\boost_1_80_0\bin\x64\lib;..\..\OpenCL-SDK-v2022.05.18-Win-x64\OpenCL-SDK-2022.5.18-win32\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>..\..\OpenCL-SDK-v2022.05.18-Win-x64\OpenCL-SDK-2022.5.18-win32\include;..\..\boost_1_79_0;..\..\AviSynthPlus\avs_core\include;$(IncludePath)</IncludePath>
-    <LibraryPath>..\..\OpenCL-SDK-v2022.05.18-Win-x64\OpenCL-SDK-2022.5.18-win32\lib;..\..\boost_1_79_0\bin\x64\lib;..\..\AviSynthPlus\build_x64\Output\c_api;$(LibraryPath)</LibraryPath>
+    <IncludePath>..\..\OpenCL-SDK-v2022.05.18-Win-x64\OpenCL-SDK-2022.5.18-win32\include;..\..\boost_1_80_0;..\..\AviSynthPlus\avs_core\include;$(IncludePath)</IncludePath>
+    <LibraryPath>..\..\OpenCL-SDK-v2022.05.18-Win-x64\OpenCL-SDK-2022.5.18-win32\lib;..\..\boost_1_80_0\bin\x64\lib;..\..\AviSynthPlus\build_x64\Output\c_api;$(LibraryPath)</LibraryPath>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Label="LLVM" Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
@@ -124,12 +124,12 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>libboost_filesystem-vc143-mt-gd-x64-1_79.lib;libboost_system-vc143-mt-gd-x64-1_79.lib;OpenCL.lib;AviSynth.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libboost_filesystem-vc143-mt-gd-x64-1_80.lib;libboost_system-vc143-mt-gd-x64-1_80.lib;OpenCL.lib;AviSynth.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
-      <AdditionalDependencies>libboost_filesystem-vc143-mt-x64-1_79.lib;libboost_system-vc143-mt-x64-1_79.lib;OpenCL.lib;AviSynth.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libboost_filesystem-vc143-mt-x64-1_80.lib;libboost_system-vc143-mt-x64-1_80.lib;OpenCL.lib;AviSynth.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
