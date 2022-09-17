@@ -40,6 +40,7 @@ struct NNEDI3CLData
 {
     AVS_FilterInfo* fi;
     int field;
+    int field_no_pro;
     int dh;
     int dw;
     bool process[3];
@@ -159,40 +160,54 @@ AVS_VideoFrame* AVSC_CC NNEDI3CL_get_frame(AVS_FilterInfo* fi, int n)
 {
     NNEDI3CLData* d{ static_cast<NNEDI3CLData*>(fi->user_data) };
 
-    AVS_VideoFrame* src{ avs_get_frame(fi->child, (d->field > 1) ? (n / 2) : n) };
+    int field{ (d->field > -1) ? d->field : d->field_no_pro };
+
+    AVS_VideoFrame* src{ avs_get_frame(fi->child, (field > 1) ? (n / 2) : n) };
     if (!src)
         return nullptr;
 
-    AVS_VideoFrame* dst{ avs_new_video_frame_p(fi->env, &fi->vi, src) };
+    AVS_VideoFrame* dst{ avs_new_video_frame_p(fi->env, &fi->vi, src) };    
 
-    int field{ d->field };
-    if (field > 1)
-        field -= 2;
-
-    int err;
-    const int64_t field_based{ avs_prop_get_int(fi->env, avs_get_frame_props_ro(fi->env, src), "_FieldBased", 0, &err) };
-    if (err == 0)
+    if (d->field < 0)
     {
-        if (field_based == 1)
-            field = 0;
-        else if (field_based == 2)
-            field = 1;
-    }
+        int err;
+        const int64_t field_based{ avs_prop_get_int(fi->env, avs_get_frame_props_ro(fi->env, src), "_FieldBased", 0, &err) };
+        if (err == 0)
+        {
+            if (field_based == 1)
+                field = 0;
+            else if (field_based == 2)
+                field = 1;
 
-    int field_n;
-    if (d->field > 1)
-    {
-        if (n & 1)
-            field_n = (field == 0);
+            if (d->field > 1 || d->field_no_pro > 1)
+            {
+                if (field_based == 0)
+                    field -= 2;
+
+                field = static_cast<int>((n & 1) ? (field == 0) : (field == 1));
+            }
+        }
         else
-            field_n = (field == 1);
+        {
+            if (field > 1)
+            {
+                field -= 2;
+                field = static_cast<int>((n & 1) ? (field == 0) : (field == 1));
+            }
+        }
     }
     else
-        field_n = field;
+    {
+        if (field > 1)
+        {
+            field -= 2;
+            field = static_cast<int>((n & 1) ? (field == 0) : (field == 1));
+        }
+    }
 
     try
     {
-        d->filter(src, dst, field_n, d);
+        d->filter(src, dst, field, d);
     }
     catch (const boost::compute::opencl_error& error)
     {
@@ -209,7 +224,7 @@ AVS_VideoFrame* AVSC_CC NNEDI3CL_get_frame(AVS_FilterInfo* fi, int n)
     AVS_Map* props{ avs_get_frame_props_rw(fi->env, dst) };
     avs_prop_set_int(fi->env, props, "_FieldBased", 0, 0);
 
-    if (d->field > 1)
+    if (d->field > 1 || d->field_no_pro > 1)
     {
         int errNum;
         int errDen;
@@ -255,7 +270,7 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
         if (!avs_is_planar(&params->fi->vi))
             throw std::string{ "only planar format is supported" };
 
-        params->field = avs_as_int(avs_array_elt(args, Field));
+        params->field = avs_defined(avs_array_elt(args, Field)) ? avs_as_int(avs_array_elt(args, Field)) : -1;
         params->dh = avs_defined(avs_array_elt(args, Dh)) ? avs_as_bool(avs_array_elt(args, Dh)) : 0;
         params->dw = avs_defined(avs_array_elt(args, Dw)) ? avs_as_bool(avs_array_elt(args, Dw)) : 0;
 
@@ -286,8 +301,8 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
         params->list_device = avs_defined(avs_array_elt(args, List_device)) ? avs_as_bool(avs_array_elt(args, List_device)) : 0;
         params->info = avs_defined(avs_array_elt(args, Info)) ? avs_as_bool(avs_array_elt(args, Info)) : 0;
 
-        if (params->field < 0 || params->field > 3)
-            throw std::string{ "field must be 0, 1, 2 or 3" };
+        if (params->field < -2 || params->field > 3)
+            throw std::string{ "field must be -2, -1, 0, 1, 2 or 3" };
         if (!params->dh && (params->fi->vi.height & 1))
             throw std::string{ "height must be mod 2 when dh=False" };
         if (params->dh && params->field > 1)
@@ -413,7 +428,7 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
             return v;
         }
 
-        if (params->field > 1)
+        if (params->field == -2 || params->field > 1)
         {
             if (params->fi->vi.num_frames > INT_MAX / 2)
                 throw std::string{ "resulting clip is too long" };
@@ -426,6 +441,13 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
             params->fi->vi.fps_numerator = static_cast<unsigned>(fps_n);
             params->fi->vi.fps_denominator = static_cast<unsigned>(fps_d);
         }
+
+        if (params->field == -1)
+            params->field_no_pro = avs_get_parity(clip, 0) ? 1 : 0;
+        else if (params->field == -2)
+            params->field_no_pro = avs_get_parity(clip, 0) ? 3 : 2;
+        else
+            params->field_no_pro = -1;
 
         if (params->dh)
             params->fi->vi.height *= 2;
