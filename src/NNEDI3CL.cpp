@@ -166,7 +166,7 @@ AVS_VideoFrame* AVSC_CC NNEDI3CL_get_frame(AVS_FilterInfo* fi, int n)
     if (!src)
         return nullptr;
 
-    AVS_VideoFrame* dst{ avs_new_video_frame_p(fi->env, &fi->vi, src) };    
+    AVS_VideoFrame* dst{ avs_new_video_frame_p(fi->env, &fi->vi, src) };
 
     if (d->field < 0)
     {
@@ -847,6 +847,6 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
 
 const char* AVSC_CC avisynth_c_plugin_init(AVS_ScriptEnvironment* env)
 {
-    avs_add_function(env, "NNEDI3CL", "ci[dh]b[dw]b[planes]i*[nsize]i[nns]i[qual]i[etype]i[pscrn]i[device]i[list_device]b[info]b[st]b", Create_NNEDI3CL, 0);
+    avs_add_function(env, "NNEDI3CL", "c[field]i[dh]b[dw]b[planes]i*[nsize]i[nns]i[qual]i[etype]i[pscrn]i[device]i[list_device]b[info]b[st]b", Create_NNEDI3CL, 0);
     return "NNEDI3CL";
 }

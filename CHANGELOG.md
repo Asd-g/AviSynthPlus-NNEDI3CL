@@ -1,3 +1,9 @@
+##### 1.0.4:
+    Changed the behavior of `st`.
+    Changed the behavior of `field`.
+    Fixed undefined behavior when upstream throw runtime error.
+    Added additional information for `info=true`.
+
 ##### 1.0.3:
     Added parameter `st`.
 
