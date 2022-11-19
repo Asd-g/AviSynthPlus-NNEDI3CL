@@ -50,7 +50,7 @@ NNEDI3CL(clip input, int "field", bool "dh", bool "dw", int[] "planes", int "nsi
 - planes\
     Sets which planes will be processed.\
     Planes that are not processed will contain uninitialized memory.\
-    Default: [0, 1, 2].
+    Default: [0, 1, 2, 3].
 
 - nsize\
     Sets the size of the local neighborhood around each pixel (x_diameter x y_diameter) that is used by the predictor neural network.\

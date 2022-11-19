@@ -1,3 +1,7 @@
+##### 1.0.5:
+    Changed the check of field parity.
+    Add support for alpha plane.
+
 ##### 1.0.4:
     Changed the behavior of `st`.
     Changed the behavior of `field`.
