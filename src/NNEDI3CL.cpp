@@ -40,7 +40,6 @@ struct NNEDI3CLData
 {
     AVS_FilterInfo* fi;
     int field;
-    int field_no_pro;
     int dh;
     int dw;
     bool process[4];
@@ -157,7 +156,17 @@ AVS_VideoFrame* AVSC_CC NNEDI3CL_get_frame(AVS_FilterInfo* fi, int n)
 {
     NNEDI3CLData* d{ static_cast<NNEDI3CLData*>(fi->user_data) };
 
-    int field{ (d->field > -1) ? d->field : d->field_no_pro };
+    const int field_no_prop = [&]()
+    {
+        if (d->field == -1)
+            return avs_get_parity(fi->child, n) ? 1 : 0;
+        else if (d->field == -2)
+            return avs_get_parity(fi->child, n) ? 3 : 2;
+        else
+            return -1;
+    }();
+
+    int field{ (d->field > -1) ? d->field : field_no_prop };
 
     AVS_VideoFrame* src{ avs_get_frame(fi->child, (field > 1) ? (n / 2) : n) };
     if (!src)
@@ -176,7 +185,7 @@ AVS_VideoFrame* AVSC_CC NNEDI3CL_get_frame(AVS_FilterInfo* fi, int n)
             else if (field_based == 2)
                 field = 1;
 
-            if (d->field > 1 || d->field_no_pro > 1)
+            if (d->field > 1 || field_no_prop > 1)
             {
                 if (field_based == 0)
                     field -= 2;
@@ -221,7 +230,7 @@ AVS_VideoFrame* AVSC_CC NNEDI3CL_get_frame(AVS_FilterInfo* fi, int n)
     AVS_Map* props{ avs_get_frame_props_rw(fi->env, dst) };
     avs_prop_set_int(fi->env, props, "_FieldBased", 0, 0);
 
-    if (d->field > 1 || d->field_no_pro > 1)
+    if (d->field > 1 || field_no_prop > 1)
     {
         int errNum;
         int errDen;
@@ -436,13 +445,6 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
             params->fi->vi.fps_numerator = static_cast<unsigned>(fps_n);
             params->fi->vi.fps_denominator = static_cast<unsigned>(fps_d);
         }
-
-        if (params->field == -1)
-            params->field_no_pro = avs_get_parity(clip, 0) ? 1 : 0;
-        else if (params->field == -2)
-            params->field_no_pro = avs_get_parity(clip, 0) ? 3 : 2;
-        else
-            params->field_no_pro = -1;
 
         if (params->dh)
             params->fi->vi.height *= 2;
@@ -802,7 +804,7 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
 
             params->weights1 = mem;
         }
-        }
+    }
     catch (const std::string& error)
     {
         const std::string err{ std::string("NNEDI3CL: ") + error };
@@ -838,7 +840,7 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
     avs_release_clip(clip);
 
     return v;
-    }
+}
 
 const char* AVSC_CC avisynth_c_plugin_init(AVS_ScriptEnvironment* env)
 {
