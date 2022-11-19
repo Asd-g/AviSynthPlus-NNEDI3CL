@@ -43,9 +43,7 @@ struct NNEDI3CLData
     int field_no_pro;
     int dh;
     int dw;
-    bool process[3];
-    int list_device;
-    int info;
+    bool process[4];
     boost::compute::command_queue queue;
     boost::compute::kernel kernel;
     boost::compute::image2d src;
@@ -67,12 +65,11 @@ static AVS_FORCEINLINE int roundds(const double f) noexcept
 template<typename T, bool st>
 void filter(const AVS_VideoFrame* src, AVS_VideoFrame* dst, const int field_n, const NNEDI3CLData* const __restrict d)
 {
-    const int planes_y[3]{ AVS_PLANAR_Y, AVS_PLANAR_U, AVS_PLANAR_V };
-    const int planes_r[3]{ AVS_PLANAR_R, AVS_PLANAR_G, AVS_PLANAR_B };
+    const int planes_y[4]{ AVS_PLANAR_Y, AVS_PLANAR_U, AVS_PLANAR_V, AVS_PLANAR_A };
+    const int planes_r[4]{ AVS_PLANAR_R, AVS_PLANAR_G, AVS_PLANAR_B, AVS_PLANAR_A };
     const int* planes{ (avs_is_rgb(&d->fi->vi) ? planes_r : planes_y) };
-    const int num_planes{ std::min(avs_num_components(&d->fi->vi), 3) };
 
-    for (int i{ 0 }; i < num_planes; ++i)
+    for (int i{ 0 }; i < avs_num_components(&d->fi->vi); ++i)
     {
         if (d->process[i])
         {
@@ -276,7 +273,7 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
 
         const int num_planes{ (avs_defined(avs_array_elt(args, Planes))) ? avs_array_size(avs_array_elt(args, Planes)) : 0 };
 
-        for (int i{ 0 }; i < 3; ++i)
+        for (int i{ 0 }; i < 4; ++i)
             params->process[i] = (num_planes <= 0);
 
         for (int i{ 0 }; i < num_planes; ++i)
@@ -298,8 +295,6 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
         const int etype{ avs_defined(avs_array_elt(args, Etype)) ? avs_as_int(avs_array_elt(args, Etype)) : 0 };
         const int pscrn{ avs_defined(avs_array_elt(args, Pscrn)) ? avs_as_int(avs_array_elt(args, Pscrn)) : (avs_component_size(&params->fi->vi) < 4) ? 2 : 1 };
         const int device_id{ avs_defined(avs_array_elt(args, Device)) ? avs_as_int(avs_array_elt(args, Device)) : -1 };
-        params->list_device = avs_defined(avs_array_elt(args, List_device)) ? avs_as_bool(avs_array_elt(args, List_device)) : 0;
-        params->info = avs_defined(avs_array_elt(args, Info)) ? avs_as_bool(avs_array_elt(args, Info)) : 0;
 
         if (params->field < -2 || params->field > 3)
             throw std::string{ "field must be -2, -1, 0, 1, 2 or 3" };
@@ -332,7 +327,7 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
         if (device_id >= static_cast<int>(boost::compute::system::device_count()))
             throw std::string{ "device index out of range" };
 
-        if (params->list_device)
+        if (avs_defined(avs_array_elt(args, List_device)) ? avs_as_bool(avs_array_elt(args, List_device)) : 0)
         {
             const auto devices{ boost::compute::system::devices() };
             std::string text;
@@ -366,7 +361,7 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
         boost::compute::context context{ device };
         params->queue = boost::compute::command_queue{ context, device };
 
-        if (params->info)
+        if (avs_defined(avs_array_elt(args, Info)) ? avs_as_bool(avs_array_elt(args, Info)) : 0)
         {
             std::string text{ "=== Platform Info ===\n" };
             const auto platform{ device.platform() };
@@ -807,7 +802,7 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
 
             params->weights1 = mem;
         }
-    }
+        }
     catch (const std::string& error)
     {
         const std::string err{ std::string("NNEDI3CL: ") + error };
@@ -843,7 +838,7 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
     avs_release_clip(clip);
 
     return v;
-}
+    }
 
 const char* AVSC_CC avisynth_c_plugin_init(AVS_ScriptEnvironment* env)
 {
