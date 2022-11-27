@@ -1,3 +1,6 @@
+##### 1.0.6:
+    Fixed double rate mode.
+
 ##### 1.0.5:
     Changed the check of field parity.
     Add support for alpha plane.

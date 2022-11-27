@@ -161,14 +161,14 @@ AVS_VideoFrame* AVSC_CC NNEDI3CL_get_frame(AVS_FilterInfo* fi, int n)
         if (d->field == -1)
             return avs_get_parity(fi->child, n) ? 1 : 0;
         else if (d->field == -2)
-            return avs_get_parity(fi->child, n) ? 3 : 2;
+            return avs_get_parity(fi->child, n >> 1) ? 3 : 2;
         else
             return -1;
     }();
 
     int field{ (d->field > -1) ? d->field : field_no_prop };
 
-    AVS_VideoFrame* src{ avs_get_frame(fi->child, (field > 1) ? (n / 2) : n) };
+    AVS_VideoFrame* src{ avs_get_frame(fi->child, (field > 1) ? (n >> 1) : n) };
     if (!src)
         return nullptr;
 
@@ -437,7 +437,7 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
             if (params->fi->vi.num_frames > INT_MAX / 2)
                 throw std::string{ "resulting clip is too long" };
 
-            params->fi->vi.num_frames *= 2;
+            params->fi->vi.num_frames <<= 1;
 
             int64_t fps_n{ params->fi->vi.fps_numerator };
             int64_t fps_d{ params->fi->vi.fps_denominator };
@@ -447,10 +447,10 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
         }
 
         if (params->dh)
-            params->fi->vi.height *= 2;
+            params->fi->vi.height <<= 1;
 
         if (params->dw)
-            params->fi->vi.width *= 2;
+            params->fi->vi.width <<= 1;
 
         const int peak{ (1 << avs_bits_per_component(&params->fi->vi)) - 1 };
 
