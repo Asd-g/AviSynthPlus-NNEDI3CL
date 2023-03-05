@@ -4,6 +4,8 @@ NNEDI3 is an intra-field only deinterlacer. It takes a frame, throws away one fi
 
 This is [a port of the VapourSynth plugin NNEDI3CL](https://github.com/HomeOfVapourSynthEvolution/VapourSynth-NNEDI3CL).
 
+[NNEDI3CL_rpow2.avsi](https://github.com/Asd-g/AviSynthPlus-NNEDI3CL/blob/main/NNEDI3CL_rpow2.avsi) is provided - a wrapper of NNEDI3CL for enlarging images by powers of 2.
+
 ### Requirements:
 
 - AviSynth+ r3682 (can be downloaded from [here](https://gitlab.com/uvz/AviSynthPlus-Builds) until official release is uploaded) (r3689 recommended) or later
@@ -44,7 +46,7 @@ NNEDI3CL(clip input, int "field", bool "dh", bool "dw", int[] "planes", int "nsi
 
 - dw\
     Doubles the width of the input.\
-    field must be set to either 0 or 1 when using dh=true.\
+    field must be set to either 0 or 1 when using dw=true.\
     Default: False.
 
 - planes\
