@@ -20,10 +20,12 @@
 # Must be either "left" or "center".
 
 
-### Version: 1.0.0
+### Version: 1.0.1
 
 
 ### Changelog ###
+#---------------
+# Fixed processing of Y clips.
 #---------------
 # Initial version.
 
@@ -46,7 +48,6 @@ Function NNEDI3CL_rpow2(clip input, int "rfactor", int "field", int "nsize", int
     {
         chroma_loc = Default(chroma_loc, "left")
 
-        Assert(NumComponents() > 1, "NNEDI3CL_rpow2: the clip doesn't have chroma planes.")
         Assert(cshift == "spline36" || cshift == "point" || cshift == "bilinear" || cshift == "bicubic" || cshift == "lanczos" || cshift == "lanczos4" || cshift == "spline16" || cshift == "spline64", "NNEDI3CL_rpow2: wrong cshift.")
         Assert(chroma_loc == "left" || chroma_loc == "center", "NNEDI3CL_rpow2: chroma_loc must be either left or center.")
 
