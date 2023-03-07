@@ -20,10 +20,12 @@
 # Must be either "left" or "center".
 
 
-### Version: 1.0.1
+### Version: 1.0.2
 
 
 ### Changelog ###
+#---------------
+# Fixed processing of 422 clips.
 #---------------
 # Fixed processing of Y clips.
 #---------------
@@ -58,10 +60,11 @@ Function NNEDI3CL_rpow2(clip input, int "rfactor", int "field", int "nsize", int
             if (Is420() || Is422())
             {
                 shift_chroma = ((chroma_loc == "left") ? shift : (-(rfactor - 1))) / 2.0
+                v = (Is420()) ? BitRShiftU(Height(), 1) : Height()
 
                 y = Eval("z_" + cshift + "Resize(ExtractY(), Width(), Height(), src_left=shift, src_top=shift)")
-                u = Eval("z_" + cshift + "Resize(ExtractU(), BitRShiftU(Width(), 1), BitRShiftU(Height(), 1), src_left=shift_chroma, src_top=shift)")
-                v = Eval("z_" + cshift + "Resize(ExtractV(), BitRShiftU(Width(), 1), BitRShiftU(Height(), 1), src_left=shift_chroma, src_top=shift)")
+                u = Eval("z_" + cshift + "Resize(ExtractU(), BitRShiftU(Width(), 1), v, src_left=shift_chroma, src_top=shift)")
+                v = Eval("z_" + cshift + "Resize(ExtractV(), BitRShiftU(Width(), 1), v, src_left=shift_chroma, src_top=shift)")
 
                 return CombinePlanes(y, u, v, planes="yuv", sample_clip=last)
             }
@@ -74,12 +77,13 @@ Function NNEDI3CL_rpow2(clip input, int "rfactor", int "field", int "nsize", int
         {
             shift = 0.5 * (rfactor - 1)
             shift_chroma =  (chroma_loc == "left") ? (0.5 * (rfactor * (step + 1) + 1) / 2.0) : shift
+            v = (Is420()) ? BitRShiftU(Height(), 1) : Height()
 
             if (Is420() || Is422())
             {
                 y = Eval("z_" + cshift + "Resize(ExtractY(), Width(), Height(), src_left=shift, src_top=shift)")
-                u = Eval("z_" + cshift + "Resize(ExtractU(), BitRShiftU(Width(), 1), BitRShiftU(Height(), 1), src_left=shift_chroma, src_top=shift)")
-                v = Eval("z_" + cshift + "Resize(ExtractV(), BitRShiftU(Width(), 1), BitRShiftU(Height(), 1), src_left=shift_chroma, src_top=shift)")
+                u = Eval("z_" + cshift + "Resize(ExtractU(), BitRShiftU(Width(), 1), v, src_left=shift_chroma, src_top=shift)")
+                v = Eval("z_" + cshift + "Resize(ExtractV(), BitRShiftU(Width(), 1), v, src_left=shift_chroma, src_top=shift)")
 
                 return CombinePlanes(y, u, v, planes="yuv", sample_clip=last)
             }
