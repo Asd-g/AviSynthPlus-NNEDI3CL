@@ -1,5 +1,5 @@
-#include <cstdio>
 #include <cerrno>
+#include <cstdio>
 
 #include <locale>
 #include <memory>
@@ -22,8 +22,8 @@
 #define BOOST_COMPUTE_THREAD_SAFE
 #define BOOST_COMPUTE_USE_OFFLINE_CACHE
 #include "boost/compute/core.hpp"
-#include "boost/dll.hpp"
 #include "boost/compute/utility/dim.hpp"
+#include "boost/dll.hpp"
 
 #include "avisynth_c.h"
 #include "NNEDI3CL.cl"
@@ -51,7 +51,7 @@ struct NNEDI3CLData
     boost::compute::buffer weights0;
     boost::compute::buffer weights1Buffer;
     cl_mem weights1;
-    std::unique_ptr<char[]> err;
+    std::string err;
 
     void (*filter)(const AVS_VideoFrame* src, AVS_VideoFrame* dst, const int field_n, const NNEDI3CLData* const __restrict d);
 };
@@ -64,8 +64,8 @@ static AVS_FORCEINLINE int roundds(const double f) noexcept
 template<typename T, bool st>
 void filter(const AVS_VideoFrame* src, AVS_VideoFrame* dst, const int field_n, const NNEDI3CLData* const __restrict d)
 {
-    const int planes_y[4]{ AVS_PLANAR_Y, AVS_PLANAR_U, AVS_PLANAR_V, AVS_PLANAR_A };
-    const int planes_r[4]{ AVS_PLANAR_R, AVS_PLANAR_G, AVS_PLANAR_B, AVS_PLANAR_A };
+    constexpr int planes_y[4]{ AVS_PLANAR_Y, AVS_PLANAR_U, AVS_PLANAR_V, AVS_PLANAR_A };
+    constexpr int planes_r[4]{ AVS_PLANAR_R, AVS_PLANAR_G, AVS_PLANAR_B, AVS_PLANAR_A };
     const int* planes{ (avs_is_rgb(&d->fi->vi) ? planes_r : planes_y) };
 
     for (int i{ 0 }; i < avs_num_components(&d->fi->vi); ++i)
@@ -217,10 +217,8 @@ AVS_VideoFrame* AVSC_CC NNEDI3CL_get_frame(AVS_FilterInfo* fi, int n)
     }
     catch (const boost::compute::opencl_error& error)
     {
-        const std::string err{ std::string("NNEDI3CL: ") + error.error_string() };
-        d->err = std::make_unique<char[]>(err.size() + 1);
-        strcpy(d->err.get(), err.c_str());
-        fi->error = d->err.get();
+        d->err = "NNEDI3CL: " + error.error_string();
+        fi->error = d->err.c_str();
         avs_release_video_frame(src);
         avs_release_video_frame(dst);
 
@@ -263,7 +261,7 @@ int AVSC_CC NNEDI3CL_set_cache_hints(AVS_FilterInfo* fi, int cachehints, int fra
 
 AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, void* param)
 {
-    enum { Clip, Field, Dh, Dw, Planes, Nsize, Nns, Qual, Etype, Pscrn, Device, List_device, Info, St };
+    enum { Clip, Field, Dh, Dw, Planes, Nsize, Nns, Qual, Etype, Pscrn, Device, List_device, Info, St, Luma };
 
     NNEDI3CLData* params{ new NNEDI3CLData() };
 
@@ -296,6 +294,17 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
                 throw std::string{ "plane specified twice" };
 
             params->process[n] = true;
+        }
+
+        const int onlyY{ (avs_defined(avs_array_elt(args, Luma))) ? avs_as_bool(avs_array_elt(args, Luma)) : 0 };
+
+        if (onlyY && !avs_is_rgb(&params->fi->vi))
+        {
+            if (num_planes > 1)
+                throw std::string{ "luma cannot be true when processed planes are more than 1" };
+            if (!params->process[0])
+                throw std::string{ "planes=0 must be used for luma=true" };
+            params->fi->vi.pixel_type = AVS_CS_GENERIC_Y;
         }
 
         const int nsize{ avs_defined(avs_array_elt(args, Nsize)) ? avs_as_int(avs_array_elt(args, Nsize)) : 6 };
@@ -339,23 +348,14 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
         if (avs_defined(avs_array_elt(args, List_device)) ? avs_as_bool(avs_array_elt(args, List_device)) : 0)
         {
             const auto devices{ boost::compute::system::devices() };
-            std::string text;
 
             for (size_t i{ 0 }; i < devices.size(); ++i)
-                text += std::to_string(i) + ": " + devices[i].name() + " (" + devices[i].platform().name() + ")" + "\n";
-
-            params->err = std::make_unique<char[]>(text.size() + 1);
-            strcpy(params->err.get(), text.c_str());
+                params->err += std::to_string(i) + ": " + devices[i].name() + " (" + devices[i].platform().name() + ")" + "\n";
 
             AVS_Value cl{ avs_new_value_clip(clip) };
-            AVS_Value args_[2]{ cl , avs_new_value_string(params->err.get()) };
-            AVS_Value inv{ avs_invoke(params->fi->env, "Text", avs_new_value_array(args_, 2), 0) };
-            AVS_Clip* clip1{ avs_take_clip(inv, env) };
+            AVS_Value args_[2]{ cl , avs_new_value_string(params->err.c_str()) };
+            v = avs_invoke(params->fi->env, "Text", avs_new_value_array(args_, 2), 0);
 
-            v = avs_new_value_clip(clip1);
-
-            avs_release_clip(clip1);
-            avs_release_value(inv);
             avs_release_value(cl);
             avs_release_clip(clip);
 
@@ -372,60 +372,52 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
 
         if (avs_defined(avs_array_elt(args, Info)) ? avs_as_bool(avs_array_elt(args, Info)) : 0)
         {
-            std::string text{ "=== Platform Info ===\n" };
+            params->err = "=== Platform Info ===\n";
             const auto platform{ device.platform() };
-            text += "Profile: " + platform.get_info<CL_PLATFORM_PROFILE>() + "\n";
-            text += "Version: " + platform.get_info<CL_PLATFORM_VERSION>() + "\n";
-            text += "Name: " + platform.get_info<CL_PLATFORM_NAME>() + "\n";
-            text += "Vendor: " + platform.get_info<CL_PLATFORM_VENDOR>() + "\n";
+            params->err += "Profile: " + platform.get_info<CL_PLATFORM_PROFILE>() + "\n";
+            params->err += "Version: " + platform.get_info<CL_PLATFORM_VERSION>() + "\n";
+            params->err += "Name: " + platform.get_info<CL_PLATFORM_NAME>() + "\n";
+            params->err += "Vendor: " + platform.get_info<CL_PLATFORM_VENDOR>() + "\n";
 
-            text += "\n";
+            params->err += "\n";
 
-            text += "=== Device Info ===\n";
-            text += "Name: " + device.get_info<CL_DEVICE_NAME>() + "\n";
-            text += "Vendor: " + device.get_info<CL_DEVICE_VENDOR>() + "\n";
-            text += "Profile: " + device.get_info<CL_DEVICE_PROFILE>() + "\n";
-            text += "Version: " + device.get_info<CL_DEVICE_VERSION>() + "\n";
-            text += "Max compute units: " + std::to_string(device.get_info<CL_DEVICE_MAX_COMPUTE_UNITS>()) + "\n";
-            text += "Max work-group size: " + std::to_string(device.get_info<CL_DEVICE_MAX_WORK_GROUP_SIZE>()) + "\n";
+            params->err += "=== Device Info ===\n";
+            params->err += "Name: " + device.get_info<CL_DEVICE_NAME>() + "\n";
+            params->err += "Vendor: " + device.get_info<CL_DEVICE_VENDOR>() + "\n";
+            params->err += "Profile: " + device.get_info<CL_DEVICE_PROFILE>() + "\n";
+            params->err += "Version: " + device.get_info<CL_DEVICE_VERSION>() + "\n";
+            params->err += "Max compute units: " + std::to_string(device.get_info<CL_DEVICE_MAX_COMPUTE_UNITS>()) + "\n";
+            params->err += "Max work-group size: " + std::to_string(device.get_info<CL_DEVICE_MAX_WORK_GROUP_SIZE>()) + "\n";
             const auto max_work_item_sizes{ device.get_info<CL_DEVICE_MAX_WORK_ITEM_SIZES>() };
-            text += "Max work-item sizes: " + std::to_string(max_work_item_sizes[0]) + ", " + std::to_string(max_work_item_sizes[1]) + ", " + std::to_string(max_work_item_sizes[2]) + "\n";
-            text += "2D image max width: " + std::to_string(device.get_info<CL_DEVICE_IMAGE2D_MAX_WIDTH>()) + "\n";
-            text += "2D image max height: " + std::to_string(device.get_info<CL_DEVICE_IMAGE2D_MAX_HEIGHT>()) + "\n";
-            text += "Image support: " + std::string{ device.get_info<CL_DEVICE_IMAGE_SUPPORT>() ? "CL_TRUE" : "CL_FALSE" } + "\n";
+            params->err += "Max work-item sizes: " + std::to_string(max_work_item_sizes[0]) + ", " + std::to_string(max_work_item_sizes[1]) + ", " + std::to_string(max_work_item_sizes[2]) + "\n";
+            params->err += "2D image max width: " + std::to_string(device.get_info<CL_DEVICE_IMAGE2D_MAX_WIDTH>()) + "\n";
+            params->err += "2D image max height: " + std::to_string(device.get_info<CL_DEVICE_IMAGE2D_MAX_HEIGHT>()) + "\n";
+            params->err += "Image support: " + std::string{ device.get_info<CL_DEVICE_IMAGE_SUPPORT>() ? "CL_TRUE" : "CL_FALSE" } + "\n";
             const auto global_mem_cache_type{ device.get_info<CL_DEVICE_GLOBAL_MEM_CACHE_TYPE>() };
             if (global_mem_cache_type == CL_NONE)
-                text += "Global memory cache type: CL_NONE\n";
+                params->err += "Global memory cache type: CL_NONE\n";
             else if (global_mem_cache_type == CL_READ_ONLY_CACHE)
-                text += "Global memory cache type: CL_READ_ONLY_CACHE\n";
+                params->err += "Global memory cache type: CL_READ_ONLY_CACHE\n";
             else if (global_mem_cache_type == CL_READ_WRITE_CACHE)
-                text += "Global memory cache type: CL_READ_WRITE_CACHE\n";
-            text += "Global memory cache size: " + std::to_string(device.get_info<CL_DEVICE_GLOBAL_MEM_CACHE_SIZE>() / 1024) + " KB\n";
-            text += "Global memory size: " + std::to_string(device.get_info<CL_DEVICE_GLOBAL_MEM_SIZE>() / (1024 * 1024)) + " MB\n";
-            text += "Max constant buffer size: " + std::to_string(device.get_info<CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE>() / 1024) + " KB\n";
-            text += "Max constant arguments: " + std::to_string(device.get_info<CL_DEVICE_MAX_CONSTANT_ARGS>()) + "\n";
-            text += "Local memory type: " + std::string{ device.get_info<CL_DEVICE_LOCAL_MEM_TYPE>() == CL_LOCAL ? "CL_LOCAL" : "CL_GLOBAL" } + "\n";
-            text += "Local memory size: " + std::to_string(device.get_info<CL_DEVICE_LOCAL_MEM_SIZE>() / 1024) + " KB\n";
-            text += "Available: " + std::string{ device.get_info<CL_DEVICE_AVAILABLE>() ? "CL_TRUE" : "CL_FALSE" } + "\n";
-            text += "Compiler available: " + std::string{ device.get_info<CL_DEVICE_COMPILER_AVAILABLE>() ? "CL_TRUE" : "CL_FALSE" } + "\n";
-            text += "OpenCL C version: " + device.get_info<CL_DEVICE_OPENCL_C_VERSION>() + "\n";
-            text += "Linker available: " + std::string{ device.get_info<CL_DEVICE_LINKER_AVAILABLE>() ? "CL_TRUE" : "CL_FALSE" } + "\n";
-            text += "Image max buffer size: " + std::to_string(device.get_info<size_t>(CL_DEVICE_IMAGE_MAX_BUFFER_SIZE) / 1024) + " KB" + "\n";
-            text += "Out of order (on host): " + std::string{ !!(device.get_info<CL_DEVICE_QUEUE_ON_HOST_PROPERTIES>() & 1) ? "CL_TRUE" : "CL_FALSE" } + "\n";
-            text += "Out of order (on device): " + std::string{ !!(device.get_info<CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES>() & 1) ? "CL_TRUE" : "CL_FALSE" };
-
-            params->err = std::make_unique<char[]>(text.size() + 1);
-            strcpy(params->err.get(), text.c_str());
+                params->err += "Global memory cache type: CL_READ_WRITE_CACHE\n";
+            params->err += "Global memory cache size: " + std::to_string(device.get_info<CL_DEVICE_GLOBAL_MEM_CACHE_SIZE>() / 1024) + " KB\n";
+            params->err += "Global memory size: " + std::to_string(device.get_info<CL_DEVICE_GLOBAL_MEM_SIZE>() / (1024 * 1024)) + " MB\n";
+            params->err += "Max constant buffer size: " + std::to_string(device.get_info<CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE>() / 1024) + " KB\n";
+            params->err += "Max constant arguments: " + std::to_string(device.get_info<CL_DEVICE_MAX_CONSTANT_ARGS>()) + "\n";
+            params->err += "Local memory type: " + std::string{ device.get_info<CL_DEVICE_LOCAL_MEM_TYPE>() == CL_LOCAL ? "CL_LOCAL" : "CL_GLOBAL" } + "\n";
+            params->err += "Local memory size: " + std::to_string(device.get_info<CL_DEVICE_LOCAL_MEM_SIZE>() / 1024) + " KB\n";
+            params->err += "Available: " + std::string{ device.get_info<CL_DEVICE_AVAILABLE>() ? "CL_TRUE" : "CL_FALSE" } + "\n";
+            params->err += "Compiler available: " + std::string{ device.get_info<CL_DEVICE_COMPILER_AVAILABLE>() ? "CL_TRUE" : "CL_FALSE" } + "\n";
+            params->err += "OpenCL C version: " + device.get_info<CL_DEVICE_OPENCL_C_VERSION>() + "\n";
+            params->err += "Linker available: " + std::string{ device.get_info<CL_DEVICE_LINKER_AVAILABLE>() ? "CL_TRUE" : "CL_FALSE" } + "\n";
+            params->err += "Image max buffer size: " + std::to_string(device.get_info<size_t>(CL_DEVICE_IMAGE_MAX_BUFFER_SIZE) / 1024) + " KB" + "\n";
+            params->err += "Out of order (on host): " + std::string{ !!(device.get_info<CL_DEVICE_QUEUE_ON_HOST_PROPERTIES>() & 1) ? "CL_TRUE" : "CL_FALSE" } + "\n";
+            params->err += "Out of order (on device): " + std::string{ !!(device.get_info<CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES>() & 1) ? "CL_TRUE" : "CL_FALSE" };
 
             AVS_Value cl{ avs_new_value_clip(clip) };
-            AVS_Value args_[2]{ cl, avs_new_value_string(params->err.get()) };
-            AVS_Value inv{ avs_invoke(params->fi->env, "Text", avs_new_value_array(args_, 2), 0) };
-            AVS_Clip* clip1{ avs_take_clip(inv, env) };
+            AVS_Value args_[2]{ cl, avs_new_value_string(params->err.c_str()) };
+            v = avs_invoke(params->fi->env, "Text", avs_new_value_array(args_, 2), 0);
 
-            v = avs_new_value_clip(clip1);
-
-            avs_release_clip(clip1);
-            avs_release_value(inv);
             avs_release_value(cl);
             avs_release_clip(clip);
 
@@ -807,24 +799,18 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
     }
     catch (const std::string& error)
     {
-        const std::string err{ std::string("NNEDI3CL: ") + error };
-        params->err = std::make_unique<char[]>(err.size() + 1);
-        strcpy(params->err.get(), err.c_str());
-        v = avs_new_value_error(params->err.get());
+        params->err = "NNEDI3CL: " + error;
+        v = avs_new_value_error(params->err.c_str());
     }
     catch (const boost::compute::no_device_found& error)
     {
-        const std::string err{ std::string{ "NNEDI3CL: " } + error.what() };
-        params->err = std::make_unique<char[]>(err.size() + 1);
-        strcpy(params->err.get(), err.c_str());
-        v = avs_new_value_error(params->err.get());
+        params->err = std::string{ "NNEDI3CL: " } + error.what();
+        v = avs_new_value_error(params->err.c_str());
     }
     catch (const boost::compute::opencl_error& error)
     {
-        const std::string err{ std::string{ "NNEDI3CL: " } + error.error_string() };
-        params->err = std::make_unique<char[]>(err.size() + 1);
-        strcpy(params->err.get(), err.c_str());
-        v = avs_new_value_error(params->err.get());
+        params->err = "NNEDI3CL: " + error.error_string();
+        v = avs_new_value_error(params->err.c_str());
     }
 
     if (!avs_defined(v))
@@ -844,6 +830,6 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
 
 const char* AVSC_CC avisynth_c_plugin_init(AVS_ScriptEnvironment* env)
 {
-    avs_add_function(env, "NNEDI3CL", "c[field]i[dh]b[dw]b[planes]i*[nsize]i[nns]i[qual]i[etype]i[pscrn]i[device]i[list_device]b[info]b[st]b", Create_NNEDI3CL, 0);
+    avs_add_function(env, "NNEDI3CL", "c[field]i[dh]b[dw]b[planes]i*[nsize]i[nns]i[qual]i[etype]i[pscrn]i[device]i[list_device]b[info]b[st]b[luma]b", Create_NNEDI3CL, 0);
     return "NNEDI3CL";
 }

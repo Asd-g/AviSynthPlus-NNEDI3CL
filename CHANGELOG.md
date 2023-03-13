@@ -1,3 +1,6 @@
+##### 1.0.7:
+    Adde parameter `luma`.
+
 ##### 1.0.6:
     Fixed double rate mode.
 
