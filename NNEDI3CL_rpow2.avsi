@@ -5,7 +5,7 @@
 
 
 ### Usage ###
-# NNEDI3CL_rpow2(clip input, int "rfactor", int "field", int "nsize", int "nns", int "qual", int "etype", int "pscrn", int "device", bool "st", string "cshift", string "chroma_loc")
+# NNEDI3CL_rpow2(clip input, int "rfactor", int "field", int "nsize", int "nns", int "qual", int "etype", int "pscrn", int "device", bool "st", string "cshift", string "chroma_loc", bool "luma")
 ###
 ## Parameters ##
 #---------------
@@ -20,10 +20,12 @@
 # Must be either "left" or "center".
 
 
-### Version: 1.0.2
+### Version: 1.0.3
 
 
 ### Changelog ###
+#---------------
+# Added parameter luma. (NNEDI3CL 1.0.7)
 #---------------
 # Fixed processing of 422 clips.
 #---------------
@@ -32,7 +34,7 @@
 # Initial version.
 
 
-Function NNEDI3CL_rpow2(clip input, int "rfactor", int "field", int "nsize", int "nns", int "qual", int "etype", int "pscrn", int "device", bool "st", string "cshift", string "chroma_loc")
+Function NNEDI3CL_rpow2(clip input, int "rfactor", int "field", int "nsize", int "nns", int "qual", int "etype", int "pscrn", int "device", bool "st", string "cshift", string "chroma_loc", bool "luma")
 {
     rfactor = Default(rfactor, 2)
     field = Default(field, 1)
@@ -43,7 +45,7 @@ Function NNEDI3CL_rpow2(clip input, int "rfactor", int "field", int "nsize", int
     input
     for (i = 0, step)
     {
-        NNEDI3CL(field=field, dh=true, dw=true, nsize=nsize, nns=nns, qual=qual, etype=etype, pscrn=pscrn, device=device, st=st)
+        NNEDI3CL(field=field, dh=true, dw=true, nsize=nsize, nns=nns, qual=qual, etype=etype, pscrn=pscrn, device=device, st=st, luma=luma)
     }
 
     if (Defined(cshift))
