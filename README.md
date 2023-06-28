@@ -8,7 +8,7 @@ This is [a port of the VapourSynth plugin NNEDI3CL](https://github.com/HomeOfVap
 
 ### Requirements:
 
-- AviSynth+ r3682 (can be downloaded from [here](https://gitlab.com/uvz/AviSynthPlus-Builds) until official release is uploaded) (r3689 recommended) or later
+- AviSynth+ r3688 (can be downloaded from [here](https://gitlab.com/uvz/AviSynthPlus-Builds) until official release is uploaded) or later
 
 - Microsoft VisualC++ Redistributable Package 2022 (can be downloaded from [here](https://github.com/abbodi1406/vcredist/releases))
 

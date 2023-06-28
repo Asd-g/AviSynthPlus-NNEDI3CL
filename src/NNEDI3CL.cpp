@@ -271,6 +271,17 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
 
     try
     {
+        if (!avs_check_version(env, 9))
+        {
+            if (avs_check_version(env, 10))
+            {
+                if (avs_get_env_property(env, AVS_AEP_INTERFACE_BUGFIX) < 2)
+                    throw std::string{ "AviSynth + version must be r3688 or later." };
+            }
+        }
+        else
+            throw std::string{ "AviSynth+ version must be r3688 or later." };
+
         if (!avs_is_planar(&params->fi->vi))
             throw std::string{ "only planar format is supported" };
 

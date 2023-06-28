@@ -1,3 +1,7 @@
+##### 1.0.8:
+    Fixed crashing when unsupported Avs+ used by explicitly throwing error.
+    Changed the required Avs+ version.
+
 ##### 1.0.7:
     Added parameter `luma`.
 

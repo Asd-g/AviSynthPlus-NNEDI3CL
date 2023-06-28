@@ -1,7 +1,7 @@
 ### A wrapper of NNEDI3CL for enlarging images by powers of 2.
 
 
-### Requirements - AviSynth+ r3682 or later, NNEDI3CL, avsresize.
+### Requirements - AviSynth+ r3688 or later, NNEDI3CL, avsresize.
 
 
 ### Usage ###
