@@ -340,13 +340,13 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
 
         if (comp_size < 4)
         {
-            if (pscrn < 1 || pscrn > 2)
-                throw "pscrn must be 1 or 2";
+            if (pscrn < 0 || pscrn > 2)
+                throw "pscrn must be 0, 1 or 2";
         }
         else
         {
-            if (pscrn != 1)
-                throw "pscrn must be 1 for float input";
+            if (pscrn != 0 && pscrn != 1)
+                throw "pscrn must be 0 or 1 for float input";
         }
 
         if (device_id >= static_cast<int>(boost::compute::system::device_count()))
@@ -663,10 +663,10 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
         const int xdia{ xdiaTable[nsize] };
         const int ydia{ ydiaTable[nsize] };
         const int asize{ xdiaTable[nsize] * ydiaTable[nsize] };
-        const int xdiad2m1{ std::max(xdia, (pscrn == 1) ? 12 : 16) / 2 - 1 };
+        const int xdiad2m1{ std::max(xdia, (pscrn == 2) ? 16 : 12) / 2 - 1 };
         const int ydiad2m1{ ydia / 2 - 1 };
-        const int xOffset{ (xdia == 8) ? (pscrn == 1 ? 2 : 4) : 0 };
-        const int inputWidth{ std::max(xdia, (pscrn == 1) ? 12 : 16) + 32 - 1 };
+        const int xOffset{ (xdia == 8) ? (pscrn == 2 ? 4 : 2) : 0 };
+        const int inputWidth{ std::max(xdia, (pscrn == 2) ? 16 : 12) + 32 - 1 };
         const int inputHeight{ ydia + 16 - 1 };
         const float scaleAsize{ 1.0f / asize };
         const float scaleQual{ 1.0f / qual };
@@ -688,19 +688,29 @@ AVS_Value AVSC_CC Create_NNEDI3CL(AVS_ScriptEnvironment* env, AVS_Value args, vo
             options.setf(std::ios::fixed, std::ios::floatfield);
             options << "-cl-denorms-are-zero -cl-fast-relaxed-math -Werror";
             options << " -D QUAL=" << qual;
-            if (pscrn == 1)
+            if (pscrn == 0)
+            {
+                options << " -D USE_NO_PSCRN=1";
+                options << " -D USE_OLD_PSCRN=0";
+                options << " -D USE_NEW_PSCRN=0";
+                options << " -D PSCRN_OFFSET=5";
+            }
+            else if (pscrn == 1)
             {
                 options << " -D PRESCREEN=prescreenOld";
+                options << " -D USE_NO_PSCRN=0";
                 options << " -D USE_OLD_PSCRN=1";
                 options << " -D USE_NEW_PSCRN=0";
+                options << " -D PSCRN_OFFSET=5";
             }
             else
             {
                 options << " -D PRESCREEN=prescreenNew";
+                options << " -D USE_NO_PSCRN=0";
                 options << " -D USE_OLD_PSCRN=0";
                 options << " -D USE_NEW_PSCRN=1";
+                options << " -D PSCRN_OFFSET=6";
             }
-            options << " -D PSCRN_OFFSET=" << (pscrn == 1 ? 5 : 6);
             options << " -D DIMS1=" << dims1;
             options << " -D NNS=" << nnsTable[nns];
             options << " -D NNS2=" << (nnsTable[nns] * 2);

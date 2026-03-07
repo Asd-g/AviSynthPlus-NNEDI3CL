@@ -101,6 +101,7 @@ NNEDI3CL(clip input, int "field", bool "dh", bool "dw", int[] "planes", int "nsi
     Since most pixels can be handled by cubic interpolation, using the prescreener generally results in much faster processing.\
     The prescreener is pretty accurate, so the difference between using it and not using it is almost always unnoticeable.\
     The new prescreener is faster than the old one, and it also causes more pixels to be handled by cubic interpolation.\
+    0: no prescreener\
     1: old prescreener\
     2: new prescreener (unavailable with float input)\
     Default: 2.

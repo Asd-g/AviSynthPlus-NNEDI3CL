@@ -1,3 +1,7 @@
+##### 1.0.9:
+    Added `pscrn=0`.
+    Fixed info/list_device=true memory leak.
+
 ##### 1.0.8:
     Fixed crashing when unsupported Avs+ used by explicitly throwing error.
     Changed the required Avs+ version.
