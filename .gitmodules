@@ -1,0 +1,3 @@
+[submodule "avs_c_api_loader"]
+	path = avs_c_api_loader
+	url = https://github.com/Asd-g/avisynthplus-c-api-dynamic-loader
