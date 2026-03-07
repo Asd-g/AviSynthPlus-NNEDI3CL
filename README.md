@@ -128,24 +128,35 @@ NNEDI3CL(clip input, int "field", bool "dh", bool "dw", int[] "planes", int "nsi
 
 ### Building:
 
-- Requires `Boost` and `OpenCL`.
+#### Prerequisites
+- **Git**
+- **CMake** >= 3.25
+- A **C++20 capable compiler** (e.g., Visual Studio 2022, GCC 11+, Clang 12+)
+- **Boost** libraries > 1.89 (chrono, filesystem). Must be findable by CMake.
+- An **OpenCL SDK**. Must be findable by CMake.
 
-- Windows\
-    Use solution files.
+1.  (Linux) Install prerequisites (example for Debian/Ubuntu):
 
-- Linux
     ```
-    Requirements:
-        - Git
-        - C++17 compiler
-        - CMake >= 3.16
+    sudo apt-get install build-essential git cmake libboost-chrono-dev libboost-filesystem-dev libboost-system-dev ocl-icd-opencl-dev
     ```
+
+2.  Clone the repository:
+
     ```
-    git clone https://github.com/Asd-g/AviSynthPlus-NNEDI3CL && \
-    cd AviSynthPlus-NNEDI3CL && \
-    mkdir build && \
-    cd build && \
-    cmake .. && \
-    make -j$(nproc) && \
-    sudo make install
+    git clone --depth 1 --shallow-submodules --recursive https://github.com/Asd-g/AviSynthPlus-NNEDI3CL
+    cd AviSynthPlus-NNEDI3CL
+    ```
+
+3.  Configure and build the project:
+
+    ```
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build -j$(nproc)
+    ```
+
+4.  (Linux) Install the plugin (optional):
+
+    ```
+    sudo cmake --install build
     ```
